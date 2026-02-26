@@ -1,0 +1,53 @@
+# .gitignore
+
+# ── Environment variables ──────────────────────────────────────
+# .env contains real secrets. NEVER commit it.
+# .env.example (with placeholder values) IS committed.
+.env
+.env.local
+.env.*.local
+
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+*.db          # SQLite database files (CP6)
+
+# ── Node / Mobile ─────────────────────────────────────────────
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+
+# ── Docker ────────────────────────────────────────────────────
+*.tar         # Docker image tarballs (CP8 artifacts)
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDEs ─────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo

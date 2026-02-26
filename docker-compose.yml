@@ -1,0 +1,35 @@
+# docker-compose.yml
+# Checkpoint 1 – Hello Containers
+#
+# Why: Compose defines ALL services, networks, and port mappings in one file.
+# Running `docker compose up` is the only command anyone needs to start the stack.
+#
+# Tradeoff: We use `build:` (build from source) instead of a pre-built image so
+# you see how the image is created. Later (CP7/CP8) we'll switch to pre-built images.
+
+services:
+  backend:
+    build:
+      context: ./backend         # directory containing the Dockerfile
+      dockerfile: Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"   # host:container
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      # Hot-reload: mount source into the container.
+      # Changes to Python files restart uvicorn automatically (--reload flag).
+      # NOTE: This is a dev-only pattern – never mount source in production.
+      - ./backend/app:/app/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# No networks block needed for a single service – Compose creates a default network.
+# We'll add explicit networks in CP7 when we introduce Postgres.

@@ -1,0 +1,54 @@
+# .github/workflows/cd.yml
+# ─────────────────────────────────────────────────────────────────
+# LEARNING NOTE – Minimal CD (Checkpoint 8)
+#
+# This workflow is a STUB. It does nothing yet.
+# It will be filled in during Checkpoint 8.
+#
+# Two options for CD (we'll pick one in CP8):
+#
+# Option A – Push to GHCR (GitHub Container Registry):
+#   - Free for public repos
+#   - Image available at: ghcr.io/<owner>/<repo>/myteams-backend:latest
+#   - Requires: GITHUB_TOKEN secret (automatic in Actions)
+#
+# Option B – Upload image tarball as workflow artifact:
+#   - No registry needed
+#   - Good for learning the Docker save/load commands
+#   - File downloadable from the Actions run page
+#
+# Trigger: `workflow_dispatch` means MANUAL trigger only.
+# You'll click "Run workflow" in the GitHub Actions UI.
+# This keeps CP8 safe – no accidental deploys on every push.
+# ─────────────────────────────────────────────────────────────────
+
+name: CD
+
+on:
+  # Manual trigger – go to Actions tab → CD → Run workflow
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deployment target"
+        required: true
+        default: "artifact"
+        type: choice
+        options:
+          - artifact    # save image as .tar artifact (Option B)
+          - ghcr        # push to GitHub Container Registry (Option A)
+
+jobs:
+  # This job will be implemented in Checkpoint 8.
+  # For now it just prints a message so the workflow is valid YAML.
+  placeholder:
+    name: CD – not yet implemented
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkpoint 8 not reached yet
+        run: |
+          echo "CD pipeline will be implemented in Checkpoint 8."
+          echo "Target input: ${{ github.event.inputs.target }}"
+          echo ""
+          echo "Options:"
+          echo "  artifact – build image, save as .tar, attach to workflow run"
+          echo "  ghcr     – build image, push to ghcr.io/<owner>/<repo>"

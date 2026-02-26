@@ -1,0 +1,70 @@
+# pyproject.toml
+# ─────────────────────────────────────────────────────────────────
+# LEARNING NOTE – pyproject.toml
+#
+# pyproject.toml is the modern Python project config file (PEP 517/518/621).
+# It replaces setup.py, setup.cfg, requirements.txt and .flake8 in one file.
+#
+# Sections:
+#   [build-system]  – which build backend to use (hatchling here, very simple)
+#   [project]       – package metadata + runtime dependencies
+#   [project.optional-dependencies] – extras (test, dev tools)
+#   [tool.ruff]     – linter/formatter config (CP4)
+#   [tool.pytest…]  – pytest config (CP4)
+# ─────────────────────────────────────────────────────────────────
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[project]
+name = "myteams-backend"
+version = "0.1.0"
+description = "MyTeams FastAPI backend – learning project"
+requires-python = ">=3.12"
+
+dependencies = [
+    # FastAPI – the web framework
+    "fastapi>=0.111.0",
+    # Uvicorn – the ASGI server that runs FastAPI
+    "uvicorn[standard]>=0.29.0",
+    # Pydantic Settings – reads config from env vars / .env files
+    "pydantic-settings>=2.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # ruff – extremely fast linter + formatter (replaces flake8, black, isort)
+    "ruff>=0.4.0",
+    # pytest – test runner
+    "pytest>=8.0.0",
+    # httpx – async-capable HTTP client; needed for FastAPI TestClient
+    "httpx>=0.27.0",
+]
+
+# ─────────────────────────────────────────────────────────────────
+# Ruff configuration (used in CP4 Quality Gates)
+# We configure it now so the file is ready when we wire CI.
+# ─────────────────────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+# E/W = pycodestyle, F = pyflakes, I = isort, UP = pyupgrade
+select = ["E", "W", "F", "I", "UP"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+# ─────────────────────────────────────────────────────────────────
+# Pytest configuration
+# ─────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
