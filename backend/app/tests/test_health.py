@@ -26,6 +26,7 @@ client = TestClient(app)
 
 # ── /v1/healthz tests ───────────────────────────────────────────
 
+
 class TestHealthz:
     def test_returns_200(self) -> None:
         response = client.get("/v1/healthz")
@@ -42,6 +43,7 @@ class TestHealthz:
 
 
 # ── /v1/readyz tests ────────────────────────────────────────────
+
 
 class TestReadyz:
     def test_returns_200(self) -> None:
@@ -76,6 +78,7 @@ class TestReadyz:
 
 
 # ── Root redirect test ───────────────────────────────────────────
+
 
 def test_root_returns_200() -> None:
     response = client.get("/")

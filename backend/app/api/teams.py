@@ -45,7 +45,8 @@ async def search_teams(
         matched = TEAMS[:limit]
     else:
         matched = [
-            t for t in TEAMS
+            t
+            for t in TEAMS
             if query in t["name"].lower()
             or query in t["short_name"].lower()
             or query in t["country"].lower()

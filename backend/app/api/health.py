@@ -28,18 +28,20 @@ router = APIRouter(tags=["health"])
 
 # ── Response schemas ────────────────────────────────────────────
 
+
 class HealthResponse(BaseModel):
-    status: str                  # "ok"
+    status: str  # "ok"
 
 
 class ReadyzResponse(BaseModel):
-    status: str                  # "ready" | "degraded"
-    checks: dict[str, str]       # name → "ok" | "error"
+    status: str  # "ready" | "degraded"
+    checks: dict[str, str]  # name → "ok" | "error"
     version: str
     environment: str
 
 
 # ── Endpoints ───────────────────────────────────────────────────
+
 
 @router.get(
     "/healthz",
@@ -56,7 +58,7 @@ async def healthz() -> HealthResponse:
     response_model=ReadyzResponse,
     summary="Readiness probe",
     description="Returns 200 if the app is ready to serve traffic. "
-                "Checks that all dependencies are reachable.",
+    "Checks that all dependencies are reachable.",
 )
 async def readyz() -> ReadyzResponse:
     # CP1: no real dependencies yet – just confirm mock data module imports.
@@ -65,6 +67,7 @@ async def readyz() -> ReadyzResponse:
     try:
         # Import mock data to confirm the module loads cleanly.
         from app.mockdata import fixtures  # noqa: F401
+
         checks["mock_data"] = "ok"
     except Exception as exc:  # noqa: BLE001
         checks["mock_data"] = f"error: {exc}"

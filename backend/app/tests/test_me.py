@@ -9,6 +9,7 @@ client = TestClient(app)
 
 # ── POST /v1/me/follows ────────────────────────────────────────
 
+
 class TestFollowTeam:
     def test_follow_valid_team_returns_201(self) -> None:
         response = client.post("/v1/me/follows", json={"team_id": "t01"})
@@ -37,6 +38,7 @@ class TestFollowTeam:
 
 # ── GET /v1/me/follows ─────────────────────────────────────────
 
+
 class TestListFollows:
     def test_empty_by_default(self) -> None:
         response = client.get("/v1/me/follows")
@@ -64,6 +66,7 @@ class TestListFollows:
 
 # ── DELETE /v1/me/follows/{teamId} ────────────────────────────
 
+
 class TestUnfollowTeam:
     def test_unfollow_followed_team_returns_200(self) -> None:
         client.post("/v1/me/follows", json={"team_id": "t01"})
@@ -87,6 +90,7 @@ class TestUnfollowTeam:
 
 
 # ── GET /v1/me/dashboard ─────────────────────────────────────
+
 
 class TestDashboard:
     def test_returns_200(self) -> None:

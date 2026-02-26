@@ -19,7 +19,7 @@ class TestTeamSearch:
         response = client.get("/v1/teams/search")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 10          # default limit=10
+        assert data["count"] == 10  # default limit=10
         assert data["query"] == ""
         assert len(data["results"]) == 10
 
@@ -46,7 +46,7 @@ class TestTeamSearch:
         response = client.get("/v1/teams/search", params={"q": "bundesliga"})
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] == 2   # Bayern + Dortmund
+        assert data["count"] == 2  # Bayern + Dortmund
 
     def test_limit_is_respected(self) -> None:
         response = client.get("/v1/teams/search", params={"q": "", "limit": 3})

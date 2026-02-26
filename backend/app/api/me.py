@@ -43,6 +43,7 @@ router = APIRouter(prefix="/me", tags=["me"])
 
 # ── Helper ──────────────────────────────────────────────────────
 
+
 def _enrich_fixture(f: dict) -> FixtureOut:
     """Add team name strings to a raw fixture dict."""
     home = TEAMS_BY_ID.get(f["home_team_id"], {})
@@ -74,12 +75,13 @@ def _enrich_standing(row: dict) -> StandingRow:
         lost=row["lost"],
         gf=row["gf"],
         ga=row["ga"],
-        gd=row["gf"] - row["ga"],   # computed field
+        gd=row["gf"] - row["ga"],  # computed field
         points=row["points"],
     )
 
 
 # ── POST /me/follows ─────────────────────────────────────────────
+
 
 @router.post(
     "/follows",
@@ -105,6 +107,7 @@ async def follow_team(body: FollowIn) -> FollowOut:
 
 # ── GET /me/follows ──────────────────────────────────────────────
 
+
 @router.get(
     "/follows",
     response_model=FollowsResponse,
@@ -113,7 +116,7 @@ async def follow_team(body: FollowIn) -> FollowOut:
 )
 async def list_follows() -> FollowsResponse:
     follows = []
-    for tid in sorted(state.followed_team_ids):   # sorted for deterministic order
+    for tid in sorted(state.followed_team_ids):  # sorted for deterministic order
         team = TEAMS_BY_ID.get(tid)
         if team:
             follows.append(FollowOut(team_id=tid, team=TeamOut(**team)))
@@ -122,6 +125,7 @@ async def list_follows() -> FollowsResponse:
 
 
 # ── DELETE /me/follows/{teamId} ──────────────────────────────────
+
 
 @router.delete(
     "/follows/{team_id}",
@@ -141,6 +145,7 @@ async def unfollow_team(team_id: str) -> UnfollowResponse:
 
 
 # ── GET /me/dashboard ────────────────────────────────────────────
+
 
 @router.get(
     "/dashboard",

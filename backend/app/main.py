@@ -44,7 +44,7 @@ app = FastAPI(
 # In production you would list specific origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],           # dev-only: allow everything
+    allow_origins=["*"],  # dev-only: allow everything
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,10 +55,11 @@ app.add_middleware(
 # All are mounted under /v1 to version the API from day 1.
 
 app.include_router(health.router, prefix="/v1")
-app.include_router(teams.router, prefix="/v1")   # CP2: /v1/teams/...
-app.include_router(me.router, prefix="/v1")       # CP2: /v1/me/...
+app.include_router(teams.router, prefix="/v1")  # CP2: /v1/teams/...
+app.include_router(me.router, prefix="/v1")  # CP2: /v1/me/...
 
 # ── Root redirect (convenience) ─────────────────────────────────
+
 
 @app.get("/", include_in_schema=False)
 async def root() -> dict:

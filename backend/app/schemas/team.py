@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 class TeamOut(BaseModel):
     """A single football team as returned by the API."""
+
     id: str
     name: str
     short_name: str
@@ -28,6 +29,7 @@ class TeamOut(BaseModel):
 
 class TeamSearchResponse(BaseModel):
     """Envelope for the team search results."""
+
     results: list[TeamOut]
-    count: int     # number of results returned (≤ limit)
-    query: str     # the search term that was used
+    count: int  # number of results returned (≤ limit)
+    query: str  # the search term that was used
