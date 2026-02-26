@@ -17,7 +17,6 @@
 #   3. Gives us a green CI baseline before adding real features
 # ─────────────────────────────────────────────────────────────────
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app

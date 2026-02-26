@@ -21,6 +21,7 @@
 
 from fastapi import APIRouter, HTTPException
 
+from app import state
 from app.mockdata.fixtures import (
     FIXTURES,
     STANDINGS_PREMIER_LEAGUE,
@@ -28,9 +29,14 @@ from app.mockdata.fixtures import (
     get_fixtures_for_team,
 )
 from app.schemas.fixture import FixtureOut, StandingRow
-from app.schemas.me import DashboardOut, FollowIn, FollowOut, FollowsResponse, UnfollowResponse
+from app.schemas.me import (
+    DashboardOut,
+    FollowIn,
+    FollowOut,
+    FollowsResponse,
+    UnfollowResponse,
+)
 from app.schemas.team import TeamOut
-from app import state
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -80,7 +86,7 @@ def _enrich_standing(row: dict) -> StandingRow:
     response_model=FollowOut,
     status_code=201,
     summary="Follow a team",
-    description="Add a team to the demo user's followed list. Returns 409 if already following.",
+    description="Add a team to the demo user's followed list. Returns 409 if already following.",  # noqa: E501
 )
 async def follow_team(body: FollowIn) -> FollowOut:
     team = TEAMS_BY_ID.get(body.team_id)
@@ -121,7 +127,7 @@ async def list_follows() -> FollowsResponse:
     "/follows/{team_id}",
     response_model=UnfollowResponse,
     summary="Unfollow a team",
-    description="Remove a team from the demo user's followed list. Returns 404 if not following.",
+    description="Remove a team from the demo user's followed list. Returns 404 if not following.",  # noqa: E501
 )
 async def unfollow_team(team_id: str) -> UnfollowResponse:
     if team_id not in state.followed_team_ids:

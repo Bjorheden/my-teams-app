@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from app.schemas.fixture import FixtureOut, StandingRow
 from app.schemas.team import TeamOut
 
-
 # ── Follows ─────────────────────────────────────────────────────
 
 class FollowIn(BaseModel):
