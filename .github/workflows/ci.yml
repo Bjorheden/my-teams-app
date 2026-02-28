@@ -99,11 +99,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: mobile/package-lock.json
+          # cache: "npm"  ← enabled in CP4 once package-lock.json is committed
+          # cache-dependency-path: mobile/package-lock.json
 
       - name: Install npm dependencies
-        run: npm ci
+        # Using `npm install` (not `npm ci`) because package-lock.json is not
+        # committed yet. Once you run `npm install` locally and commit the
+        # lock file, switch this to `npm ci` for faster, reproducible installs.
+        run: npm install
 
       - name: TypeScript typecheck
         run: npx tsc --noEmit
