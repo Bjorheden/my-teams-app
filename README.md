@@ -212,7 +212,25 @@ make shell     # interactive bash inside backend container
 make test      # run pytest inside backend container
 make lint      # run ruff check inside backend container
 make fmt       # run ruff format inside backend container
+make ps        # show running containers
+make build     # build the backend Docker image only (no start)
 ```
+
+### Windows – `make` not available?
+
+`make` is not a native Windows command. Either install it via `choco install make`, or use the equivalent `docker compose` commands directly:
+
+| `make` command | Windows equivalent | Description |
+|---|---|---|
+| `make up` | `docker compose up --build -d` | Build images and start all services (detached) |
+| `make down` | `docker compose down` | Stop and remove containers + networks |
+| `make logs` | `docker compose logs -f` | Tail all service logs |
+| `make shell` | `docker compose exec backend bash` | Interactive bash inside backend container |
+| `make test` | `docker compose exec backend python -m pytest app/tests -v` | Run pytest inside backend container |
+| `make lint` | `docker compose exec backend python -m ruff check app` | Run ruff linter inside backend container |
+| `make fmt` | `docker compose exec backend python -m ruff format app` | Run ruff formatter inside backend container |
+| `make ps` | `docker compose ps` | Show running containers |
+| `make build` | `docker compose build backend` | Build the backend Docker image only (no start) |
 
 ---
 
