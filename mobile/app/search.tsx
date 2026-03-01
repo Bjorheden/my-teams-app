@@ -109,7 +109,7 @@ export default function SearchScreen() {
       {/* Hint */}
       {!searched && (
         <Text style={styles.hint}>
-          Try: "Arsenal", "Spain", "Bundesliga"
+          Try: {'“Arsenal”, “Spain”, “Bundesliga”'}
         </Text>
       )}
 
@@ -134,7 +134,7 @@ export default function SearchScreen() {
         )}
         ListEmptyComponent={
           searched && !loading ? (
-            <Text style={styles.emptyText}>No teams found for "{query}"</Text>
+            <Text style={styles.emptyText}>{`No teams found for "${query}"`}</Text>
           ) : null
         }
         contentContainerStyle={{ paddingBottom: 32 }}
