@@ -25,8 +25,8 @@
 | 1 | Hello Containers | FastAPI basics, Dockerfile, Compose | ✅ Done |
 | 2 | Mock Data API | REST design, in-memory state, schemas | ✅ Done |
 | 3 | Mobile Connects | Expo + fetch, basic screens | ✅ Done |
-| 4 | Quality Gates | ruff, pytest, GitHub Actions CI | ✅ Current |
-| 5 | Docker in CI | Build image in Actions, smoke test | ⬜ |
+| 4 | Quality Gates | ruff, pytest, GitHub Actions CI | ✅ Done |
+| 5 | Docker in CI | Build image in Actions, smoke test | ✅ Current |
 | 6 | State Upgrade | SQLite + SQLAlchemy | ⬜ |
 | 7 | Compose Upgrade | Postgres service, env-driven config | ⬜ |
 | 8 | Minimal CD | GHCR push / artifact upload | ⬜ |
