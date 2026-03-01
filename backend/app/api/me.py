@@ -19,6 +19,8 @@
 # silently returning 200 as if something happened.
 # ─────────────────────────────────────────────────────────────────
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 
 from app import state
@@ -44,7 +46,7 @@ router = APIRouter(prefix="/me", tags=["me"])
 # ── Helper ──────────────────────────────────────────────────────
 
 
-def _enrich_fixture(f: dict) -> FixtureOut:
+def _enrich_fixture(f: dict[str, Any]) -> FixtureOut:
     """Add team name strings to a raw fixture dict."""
     home = TEAMS_BY_ID.get(f["home_team_id"], {})
     away = TEAMS_BY_ID.get(f["away_team_id"], {})
@@ -62,7 +64,7 @@ def _enrich_fixture(f: dict) -> FixtureOut:
     )
 
 
-def _enrich_standing(row: dict) -> StandingRow:
+def _enrich_standing(row: dict[str, Any]) -> StandingRow:
     """Add team name to a raw standings row."""
     team = TEAMS_BY_ID.get(row["team_id"], {})
     return StandingRow(

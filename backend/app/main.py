@@ -62,7 +62,7 @@ app.include_router(me.router, prefix="/v1")  # CP2: /v1/me/...
 
 
 @app.get("/", include_in_schema=False)
-async def root() -> dict:
+async def root() -> dict[str, str]:
     return {
         "message": "MyTeams API",
         "docs": "/docs",

@@ -79,6 +79,13 @@ jobs:
       - name: Run tests with pytest
         run: python -m pytest app/tests -v --tb=short
 
+      - name: Type-check with mypy
+        # mypy reads [tool.mypy] from pyproject.toml.
+        # LEARNING NOTE: mypy checks types ACROSS files, so it catches bugs
+        # like passing None where a str is expected, which ruff cannot see.
+        # `--package app` tells mypy to check the whole `app` package.
+        run: python -m mypy --package app
+
   # ──────────────────────────────────────────────────────────────
   # Job 2: Mobile CI
   # Runs: TypeScript typecheck + ESLint
@@ -99,14 +106,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          # cache: "npm"  ← enabled in CP4 once package-lock.json is committed
-          # cache-dependency-path: mobile/package-lock.json
+          cache: "npm"
+          cache-dependency-path: mobile/package-lock.json
 
       - name: Install npm dependencies
-        # Using `npm install` (not `npm ci`) because package-lock.json is not
-        # committed yet. Once you run `npm install` locally and commit the
-        # lock file, switch this to `npm ci` for faster, reproducible installs.
-        run: npm install
+        # `npm ci` is faster than `npm install` and guarantees exact versions
+        # from package-lock.json (fails if lock file is missing or out of sync).
+        run: npm ci
 
       - name: TypeScript typecheck
         run: npx tsc --noEmit

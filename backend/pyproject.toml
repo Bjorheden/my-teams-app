@@ -43,6 +43,11 @@ dev = [
     "pytest>=8.0.0",
     # httpx – async-capable HTTP client; needed for FastAPI TestClient
     "httpx>=0.27.0",
+    # mypy – static type checker (CP4)
+    # Checks that types actually match at every call site, which ruff/pyflakes
+    # cannot do.  Stubs packages (mypy-extensions, types-*) teach mypy about
+    # third-party libraries that ship without inline type hints.
+    "mypy>=1.10.0",
 ]
 
 # ─────────────────────────────────────────────────────────────────
@@ -68,3 +73,21 @@ known-first-party = ["app"]
 testpaths = ["app/tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+
+# ─────────────────────────────────────────────────────────────────
+# mypy configuration (CP4 – Static type checking)
+#
+# LEARNING NOTE – what mypy does that ruff cannot:
+#   ruff = style + obvious mistakes (unused imports, wrong syntax)
+#   mypy = type correctness (passing a str where int expected, None safety…)
+#
+# strict = True turns on all checks.  We ignore missing stubs for
+# third-party libs (fastapi, pydantic) that ship their own types.
+# ─────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# FastAPI and Pydantic ship their own type info – no stubs needed
+ignore_missing_imports = true
+# Don't type-check test files strictly (they use fixtures, no annotations)
+exclude = ["app/tests/"]
