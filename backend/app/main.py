@@ -15,11 +15,34 @@
 # breaking changes in v2 later.
 # ─────────────────────────────────────────────────────────────────
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import health, me, teams
 from app.core.config import settings
+
+# ── Lifespan ──────────────────────────────────────────────
+# LEARNING NOTE – lifespan replaces @app.on_event("startup")
+#
+# Code before `yield` runs on startup; code after runs on shutdown.
+# We use it to create DB tables once when the app starts.
+# Base.metadata.create_all() is idempotent – safe to call every time.
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # Import models so SQLAlchemy's Base knows about the Follow table
+    # before create_all() is called.
+    from app.db import models  # noqa: F401
+    from app.db.database import Base, engine
+
+    Base.metadata.create_all(bind=engine)
+    yield
+    # Shutdown: nothing to clean up yet
+
 
 # ── App instance ────────────────────────────────────────────────
 
@@ -31,9 +54,9 @@ app = FastAPI(
         "Learning project – mock data only. "
         "See README for checkpoint guide."
     ),
-    # Docs are always enabled in this learning project.
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ── CORS middleware ─────────────────────────────────────────────

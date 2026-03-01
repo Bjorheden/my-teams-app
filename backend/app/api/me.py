@@ -10,20 +10,25 @@
 #   GET    /me/follows          → read follows
 #   DELETE /me/follows/{teamId} → remove a follow
 #
-# We do NOT use PUT/PATCH for follows because a follow is not really
-# a resource with mutable fields – it either exists or it doesn't.
-# POST to create, DELETE to remove is the cleanest REST pattern here.
+# CP6 CHANGE: replaced in-memory `state.followed_team_ids` set with
+# real SQLAlchemy DB queries. The HTTP contract (status codes, response
+# shapes) is identical – the mobile app requires no changes.
 #
-# HTTP 409 Conflict for duplicate follows is a deliberate choice:
-# the client should know their request had no effect, rather than
-# silently returning 200 as if something happened.
+# LEARNING NOTE – Depends(get_db)
+#   FastAPI injects a fresh database Session into each route function.
+#   The session is automatically closed after the request completes
+#   (handled by the try/finally in get_db()).
+#   `Annotated[Session, Depends(get_db)]` is the idiomatic typed form.
 # ─────────────────────────────────────────────────────────────────
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from app import state
+from app.db.database import get_db
+from app.db.models import DEMO_USER_ID, Follow
 from app.mockdata.fixtures import (
     FIXTURES,
     STANDINGS_PREMIER_LEAGUE,
@@ -42,8 +47,11 @@ from app.schemas.team import TeamOut
 
 router = APIRouter(prefix="/me", tags=["me"])
 
+# Type alias so route signatures stay short and readable.
+DbSession = Annotated[Session, Depends(get_db)]
 
-# ── Helper ──────────────────────────────────────────────────────
+
+# ── Helpers ───────────────────────────────────────────────
 
 
 def _enrich_fixture(f: dict[str, Any]) -> FixtureOut:
@@ -77,12 +85,12 @@ def _enrich_standing(row: dict[str, Any]) -> StandingRow:
         lost=row["lost"],
         gf=row["gf"],
         ga=row["ga"],
-        gd=row["gf"] - row["ga"],  # computed field
+        gd=row["gf"] - row["ga"],
         points=row["points"],
     )
 
 
-# ── POST /me/follows ─────────────────────────────────────────────
+# ── POST /me/follows ─────────────────────────────────────────
 
 
 @router.post(
@@ -92,22 +100,27 @@ def _enrich_standing(row: dict[str, Any]) -> StandingRow:
     summary="Follow a team",
     description="Add a team to the demo user's followed list. Returns 409 if already following.",  # noqa: E501
 )
-async def follow_team(body: FollowIn) -> FollowOut:
+async def follow_team(body: FollowIn, db: DbSession) -> FollowOut:
     team = TEAMS_BY_ID.get(body.team_id)
     if team is None:
         raise HTTPException(status_code=404, detail=f"Team '{body.team_id}' not found.")
 
-    if body.team_id in state.followed_team_ids:
+    follow = Follow(user_id=DEMO_USER_ID, team_id=body.team_id)
+    db.add(follow)
+    try:
+        db.commit()
+    except IntegrityError:
+        # UniqueConstraint violation – already following this team
+        db.rollback()
         raise HTTPException(
             status_code=409,
             detail=f"Already following team '{body.team_id}'.",
         )
 
-    state.followed_team_ids.add(body.team_id)
     return FollowOut(team_id=body.team_id, team=TeamOut(**team))
 
 
-# ── GET /me/follows ──────────────────────────────────────────────
+# ── GET /me/follows ──────────────────────────────────────────
 
 
 @router.get(
@@ -116,17 +129,23 @@ async def follow_team(body: FollowIn) -> FollowOut:
     summary="List followed teams",
     description="Returns all teams the demo user currently follows.",
 )
-async def list_follows() -> FollowsResponse:
+async def list_follows(db: DbSession) -> FollowsResponse:
+    rows = (
+        db.query(Follow)
+        .filter(Follow.user_id == DEMO_USER_ID)
+        .order_by(Follow.team_id)
+        .all()
+    )
     follows = []
-    for tid in sorted(state.followed_team_ids):  # sorted for deterministic order
-        team = TEAMS_BY_ID.get(tid)
+    for row in rows:
+        team = TEAMS_BY_ID.get(row.team_id)
         if team:
-            follows.append(FollowOut(team_id=tid, team=TeamOut(**team)))
+            follows.append(FollowOut(team_id=row.team_id, team=TeamOut(**team)))
 
     return FollowsResponse(follows=follows, count=len(follows))
 
 
-# ── DELETE /me/follows/{teamId} ──────────────────────────────────
+# ── DELETE /me/follows/{teamId} ────────────────────────────────
 
 
 @router.delete(
@@ -135,18 +154,24 @@ async def list_follows() -> FollowsResponse:
     summary="Unfollow a team",
     description="Remove a team from the demo user's followed list. Returns 404 if not following.",  # noqa: E501
 )
-async def unfollow_team(team_id: str) -> UnfollowResponse:
-    if team_id not in state.followed_team_ids:
+async def unfollow_team(team_id: str, db: DbSession) -> UnfollowResponse:
+    follow = (
+        db.query(Follow)
+        .filter(Follow.user_id == DEMO_USER_ID, Follow.team_id == team_id)
+        .first()
+    )
+    if follow is None:
         raise HTTPException(
             status_code=404,
             detail=f"Not following team '{team_id}'.",
         )
 
-    state.followed_team_ids.discard(team_id)
+    db.delete(follow)
+    db.commit()
     return UnfollowResponse(message="Unfollowed successfully.", team_id=team_id)
 
 
-# ── GET /me/dashboard ────────────────────────────────────────────
+# ── GET /me/dashboard ──────────────────────────────────────────
 
 
 @router.get(
@@ -159,28 +184,31 @@ async def unfollow_team(team_id: str) -> UnfollowResponse:
         "If no teams are followed, returns a welcome message with empty data."
     ),
 )
-async def get_dashboard() -> DashboardOut:
+async def get_dashboard(db: DbSession) -> DashboardOut:
+    rows = db.query(Follow).filter(Follow.user_id == DEMO_USER_ID).all()
+    followed_team_ids = {row.team_id for row in rows}
+
     followed_teams = [
         TeamOut(**TEAMS_BY_ID[tid])
-        for tid in sorted(state.followed_team_ids)
+        for tid in sorted(followed_team_ids)
         if tid in TEAMS_BY_ID
     ]
 
-    # Collect all fixtures for all followed teams (deduplicated by fixture id)
+    # Collect all fixtures for followed teams (deduplicated by fixture id)
     seen_fixture_ids: set[str] = set()
     relevant_fixtures: list[FixtureOut] = []
 
-    for tid in state.followed_team_ids:
+    for tid in followed_team_ids:
         for f in get_fixtures_for_team(tid):
             if f["id"] not in seen_fixture_ids:
                 seen_fixture_ids.add(f["id"])
                 relevant_fixtures.append(_enrich_fixture(f))
 
-    # If no teams are followed yet, show all fixtures as a preview
+    # If no teams followed yet, show all fixtures as a preview
     if not followed_teams:
         relevant_fixtures = [_enrich_fixture(f) for f in FIXTURES]
 
-    # Sort: finished matches first (most recent), then scheduled (soonest first)
+    # Sort: finished matches (most recent first), then scheduled (soonest first)
     finished = sorted(
         [f for f in relevant_fixtures if f.status == "finished"],
         key=lambda f: f.date,

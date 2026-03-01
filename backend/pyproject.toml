@@ -33,6 +33,10 @@ dependencies = [
     "uvicorn[standard]>=0.29.0",
     # Pydantic Settings – reads config from env vars / .env files
     "pydantic-settings>=2.2.0",
+    # SQLAlchemy – ORM + query builder (CP6)
+    # Lets us write Python classes instead of raw SQL.
+    # Swapping SQLite → Postgres later only requires changing the URL.
+    "sqlalchemy>=2.0.0",
 ]
 
 [project.optional-dependencies]
