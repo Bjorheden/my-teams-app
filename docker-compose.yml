@@ -1,13 +1,36 @@
 # docker-compose.yml
-# Checkpoint 1 – Hello Containers
+# Checkpoint 7 – Compose Upgrade (Postgres)
 #
 # Why: Compose defines ALL services, networks, and port mappings in one file.
 # Running `docker compose up` is the only command anyone needs to start the stack.
 #
-# Tradeoff: We use `build:` (build from source) instead of a pre-built image so
-# you see how the image is created. Later (CP7/CP8) we'll switch to pre-built images.
+# CP7 changes:
+#   - Added `db` service running postgres:16
+#   - backend now depends_on db with a healthcheck condition (waits for DB to be ready)
+#   - DATABASE_URL is injected into the backend as an env var
+#   - Port 5432 is exposed so GUI tools (e.g. TablePlus, DBeaver, SQLTools) can connect
 
 services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-myteams}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-myteams}
+      POSTGRES_DB: ${POSTGRES_DB:-myteams}
+    ports:
+      - "5432:5432"              # expose to host so GUI tools can connect
+    volumes:
+      # Named volume: persists data across `docker compose down` restarts.
+      # Without this, the DB is wiped every time the container is removed.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready exits 0 when Postgres is accepting connections.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myteams} -d ${POSTGRES_DB:-myteams}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   backend:
     build:
       context: ./backend         # directory containing the Dockerfile
@@ -17,11 +40,19 @@ services:
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg2://myteams:myteams@db:5432/myteams}
     volumes:
       # Hot-reload: mount source into the container.
       # Changes to Python files restart uvicorn automatically (--reload flag).
       # NOTE: This is a dev-only pattern – never mount source in production.
       - ./backend/app:/app/app
+    depends_on:
+      db:
+        # LEARNING NOTE – condition: service_healthy
+        # Without this, the backend starts immediately and crashes because
+        # Postgres isn't ready yet. This tells Compose to wait until the db
+        # healthcheck passes before starting the backend.
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c",
@@ -29,7 +60,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
-# No networks block needed for a single service – Compose creates a default network.
-# We'll add explicit networks in CP7 when we introduce Postgres.
+volumes:
+  # LEARNING NOTE – named volumes
+  # Named volumes are managed by Docker and survive container recreation.
+  # Contrast with bind mounts (./backend/app:/app/app) which map to a host path.
+  postgres_data:

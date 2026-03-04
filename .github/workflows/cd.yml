@@ -2,24 +2,26 @@
 # ─────────────────────────────────────────────────────────────────
 # LEARNING NOTE – Minimal CD (Checkpoint 8)
 #
-# This workflow is a STUB. It does nothing yet.
-# It will be filled in during Checkpoint 8.
+# Two delivery options, selected at trigger time:
 #
-# Two options for CD (we'll pick one in CP8):
+# Option A – artifact (default):
+#   Builds the Docker image, saves it as a .tar file, and attaches it
+#   to the workflow run. Downloadable from the Actions UI for 7 days.
+#   Good for learning; no registry account needed.
 #
-# Option A – Push to GHCR (GitHub Container Registry):
-#   - Free for public repos
-#   - Image available at: ghcr.io/<owner>/<repo>/myteams-backend:latest
-#   - Requires: GITHUB_TOKEN secret (automatic in Actions)
+# Option B – ghcr (GitHub Container Registry):
+#   Builds and pushes the image to ghcr.io/<owner>/<repo>:latest.
+#   Free for public repos. Uses GITHUB_TOKEN (automatic – no setup needed).
+#   Image is pullable with: docker pull ghcr.io/<owner>/<repo>:latest
 #
-# Option B – Upload image tarball as workflow artifact:
-#   - No registry needed
-#   - Good for learning the Docker save/load commands
-#   - File downloadable from the Actions run page
+# Trigger: `workflow_dispatch` = MANUAL only.
+# Click "Run workflow" in the GitHub Actions UI → Actions tab → CD.
+# This prevents accidental deploys on every push.
 #
-# Trigger: `workflow_dispatch` means MANUAL trigger only.
-# You'll click "Run workflow" in the GitHub Actions UI.
-# This keeps CP8 safe – no accidental deploys on every push.
+# LEARNING NOTE – github.repository
+#   `github.repository` is "<owner>/<repo>" (e.g. "joakim/my-teams-app").
+#   We lowercase it with the `tr` command because GHCR image names must
+#   be all lowercase.
 # ─────────────────────────────────────────────────────────────────
 
 name: CD
@@ -29,26 +31,107 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "Deployment target"
+        description: "Delivery target"
         required: true
         default: "artifact"
         type: choice
         options:
-          - artifact    # save image as .tar artifact (Option B)
-          - ghcr        # push to GitHub Container Registry (Option A)
+          - artifact    # build + save as .tar artifact (no registry needed)
+          - ghcr        # build + push to GitHub Container Registry
 
 jobs:
-  # This job will be implemented in Checkpoint 8.
-  # For now it just prints a message so the workflow is valid YAML.
-  placeholder:
-    name: CD – not yet implemented
+  # ──────────────────────────────────────────────────────────────
+  # Job: build
+  # Builds the backend image and either saves it as an artifact
+  # or pushes it to GHCR depending on the `target` input.
+  # ──────────────────────────────────────────────────────────────
+  build:
+    name: Build & deliver backend image
     runs-on: ubuntu-latest
+
+    # LEARNING NOTE – permissions
+    # The default GITHUB_TOKEN only has read access to packages.
+    # `packages: write` is required to push images to GHCR.
+    # This is a no-op when target=artifact, but harmless to include.
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      - name: Checkpoint 8 not reached yet
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # LEARNING NOTE – Docker Buildx
+      # Buildx is Docker's extended build toolkit. It supports multi-platform
+      # builds, build caching, and is required by the docker/build-push-action.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Option B: GHCR login (skipped when target=artifact) ──────────
+      - name: Log in to GitHub Container Registry
+        if: github.event.inputs.target == 'ghcr'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          # GITHUB_TOKEN is automatically provided by Actions – no secrets setup needed.
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Derive a lowercase image name from the repo path.
+      # GHCR requires lowercase; github.repository may contain uppercase.
+      - name: Compute image name
+        id: image
         run: |
-          echo "CD pipeline will be implemented in Checkpoint 8."
-          echo "Target input: ${{ github.event.inputs.target }}"
-          echo ""
-          echo "Options:"
-          echo "  artifact – build image, save as .tar, attach to workflow run"
-          echo "  ghcr     – build image, push to ghcr.io/<owner>/<repo>"
+          NAME=$(echo "ghcr.io/${{ github.repository }}/myteams-backend" | tr '[:upper:]' '[:lower:]')
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      # ── Option A: build and export as .tar (no registry) ─────────────
+      - name: Build image (artifact mode)
+        if: github.event.inputs.target == 'artifact'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          # `type=docker` writes a single-platform image loadable with `docker load`
+          outputs: type=docker,dest=/tmp/myteams-backend.tar
+          tags: myteams-backend:latest
+
+      - name: Upload image tarball as artifact
+        if: github.event.inputs.target == 'artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: myteams-backend-image
+          path: /tmp/myteams-backend.tar
+          # Keep for 7 days – enough for review without wasting storage
+          retention-days: 7
+
+      # ── Option B: build and push to GHCR ─────────────────────────────
+      - name: Build and push image to GHCR
+        if: github.event.inputs.target == 'ghcr'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+
+      - name: Summary
+        run: |
+          echo "## CD Run Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event.inputs.target }}" = "artifact" ]; then
+            echo "**Target:** artifact" >> "$GITHUB_STEP_SUMMARY"
+            echo "Download \`myteams-backend-image\` from the Artifacts section above." >> "$GITHUB_STEP_SUMMARY"
+            echo "Load it locally with:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "docker load < myteams-backend.tar" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Target:** ghcr" >> "$GITHUB_STEP_SUMMARY"
+            echo "Image pushed to: \`${{ steps.image.outputs.name }}:latest\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "Pull with:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "docker pull ${{ steps.image.outputs.name }}:latest" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi

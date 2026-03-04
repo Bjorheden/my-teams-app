@@ -27,9 +27,9 @@
 | 3 | Mobile Connects | Expo + fetch, basic screens | ✅ Done |
 | 4 | Quality Gates | ruff, pytest, GitHub Actions CI | ✅ Done |
 | 5 | Docker in CI | Build image in Actions, smoke test | ✅ Done |
-| 6 | State Upgrade | SQLite + SQLAlchemy | ⬜ |
-| 7 | Compose Upgrade | Postgres service, env-driven config | ⬜ |
-| 8 | Minimal CD | GHCR push / artifact upload | ⬜ |
+| 6 | State Upgrade | SQLite + SQLAlchemy | ✅ Done |
+| 7 | Compose Upgrade | Postgres service, env-driven config | ✅ Done |
+| 8 | Minimal CD | GHCR push / artifact upload | ✅ Done |
 
 ---
 
@@ -138,19 +138,74 @@ make down
 
 ## Checkpoint 7 – Compose Upgrade (Postgres)
 
-### What we build (next)
-- Postgres service in `docker-compose.yml`
-- Environment-variable-driven `DATABASE_URL`
-- Health-check dependency so backend waits for DB
+### What we build
+- `db` Postgres 16 service in `docker-compose.yml` with a named volume for persistence
+- `depends_on` with `condition: service_healthy` so the backend waits for the DB to be ready
+- `DATABASE_URL` injected as an env var – same code, different DB, just change the URL
+- `psycopg2-binary` added as the Postgres driver
+- Port `5432` exposed so GUI tools (SQLTools in VS Code, TablePlus, DBeaver) can connect
+
+### Why this way?
+- **Named volume** (`postgres_data`) survives `docker compose down` so data isn't lost on restart.
+- **Healthcheck dependency** prevents the classic race condition where the backend starts before Postgres is ready.
+- **Env-var-driven config** means switching to a managed cloud Postgres (Supabase, RDS, Neon) in production requires changing exactly one value – `DATABASE_URL`. No code changes.
+
+### Commands
+
+```bash
+# Build and start both services (Postgres + backend)
+docker compose up --build -d
+
+# Watch logs from both services
+docker compose logs -f
+
+# Connect via GUI tool (e.g. SQLTools in VS Code)
+# Host: localhost  Port: 5432  User: myteams  Password: myteams  DB: myteams
+
+# Stop containers (data is preserved in the named volume)
+docker compose down
+
+# Stop AND delete all data (wipe the volume)
+docker compose down -v
+```
+
+### Definition of Done ✅
+- [ ] `docker compose up --build -d` starts both `db` and `backend` without errors
+- [ ] `backend` waits for `db` healthcheck before starting
+- [ ] `curl http://localhost:8000/v1/healthz` returns `{"status":"ok"}`
+- [ ] Can connect to Postgres on `localhost:5432` with a GUI tool
+- [ ] `follows` table exists in the `myteams` database after first startup
 
 ---
 
 ## Checkpoint 8 – Minimal CD
 
-### What we build (next)
-- Manual-trigger GitHub Actions workflow
-- Builds backend Docker image and pushes to GHCR
-- Or: saves image as a `.tar` artifact attached to the workflow run
+### What we build
+- Manual-trigger GitHub Actions workflow (`workflow_dispatch`)
+- **Option A – artifact:** builds the backend image, saves it as a `.tar` file attached to the workflow run (downloadable for 7 days)
+- **Option B – ghcr:** builds and pushes the image to `ghcr.io/<owner>/<repo>/myteams-backend:latest` using the automatic `GITHUB_TOKEN` — no secrets setup needed
+
+### Why this way?
+- **Manual trigger only** – no accidental deploys on every push while still in development.
+- **GITHUB_TOKEN** is injected automatically by Actions — no credential management required for GHCR on public repos.
+- **Both options in one workflow** — you choose at trigger time. Artifact mode is useful for learning `docker save/load`; GHCR mode is closer to real-world practice.
+
+### How to trigger
+1. Push this change to GitHub
+2. Go to **Actions** tab → **CD** → **Run workflow**
+3. Pick `artifact` or `ghcr` and click **Run workflow**
+
+### Using the artifact output
+```bash
+# Download the .tar from the Actions run page, then:
+docker load < myteams-backend.tar
+docker run -p 8000:8000 myteams-backend:latest
+```
+
+### Using the GHCR image
+```bash
+docker pull ghcr.io/<your-github-username>/<repo>/myteams-backend:latest
+```
 
 ---
 
@@ -161,7 +216,10 @@ make down
 | `BACKEND_PORT` | `8000` | Host port mapped to the backend container |
 | `ENVIRONMENT` | `development` | App environment tag |
 | `LOG_LEVEL` | `info` | Uvicorn log level (`debug`/`info`/`warning`) |
-| `DATABASE_URL` | *(CP6+)* | SQLAlchemy connection string |
+| `DATABASE_URL` | `postgresql+psycopg2://myteams:myteams@db:5432/myteams` | SQLAlchemy connection string |
+| `POSTGRES_USER` | `myteams` | Postgres username (CP7) |
+| `POSTGRES_PASSWORD` | `myteams` | Postgres password (CP7) |
+| `POSTGRES_DB` | `myteams` | Postgres database name (CP7) |
 
 ---
 

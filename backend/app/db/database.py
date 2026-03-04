@@ -31,11 +31,18 @@ from app.core.config import settings
 
 # ── Engine ───────────────────────────────────────────────────────
 
+# LEARNING NOTE – connect_args
+# `check_same_thread` is a SQLite-only restriction.
+# With Postgres (CP7+) we pass an empty dict instead.
+_connect_args = (
+    {"check_same_thread": False}
+    if settings.database_url.startswith("sqlite")
+    else {}
+)
+
 engine = create_engine(
     settings.database_url,
-    # Required for SQLite – FastAPI uses a thread pool so multiple
-    # threads may access the same connection.
-    connect_args={"check_same_thread": False},
+    connect_args=_connect_args,
 )
 
 # ── Session factory ───────────────────────────────────────────────

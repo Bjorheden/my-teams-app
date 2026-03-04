@@ -37,6 +37,10 @@ dependencies = [
     # Lets us write Python classes instead of raw SQL.
     # Swapping SQLite → Postgres later only requires changing the URL.
     "sqlalchemy>=2.0.0",
+    # psycopg2 – Postgres driver (CP7)
+    # The adapter that lets SQLAlchemy talk to Postgres.
+    # `binary` variant includes precompiled C extensions – no libpq needed.
+    "psycopg2-binary>=2.9.0",
 ]
 
 [project.optional-dependencies]
