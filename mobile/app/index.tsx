@@ -12,7 +12,7 @@
 // like React Query or SWR for caching, refetching, and deduplication.
 // ─────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -24,8 +24,10 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useFocusEffect } from "expo-router";
 
 import { getDashboard, unfollowTeam } from "./api/client";
+import { useAuth } from "./context/AuthContext";
 import type { DashboardOut, Fixture, StandingRow, Team } from "./types";
 
 // ── Sub-components ───────────────────────────────────────────────
@@ -107,6 +109,7 @@ function StandingTable({ rows }: { rows: StandingRow[] }) {
 // ── Main screen ──────────────────────────────────────────────────
 
 export default function DashboardScreen() {
+  const { clearToken } = useAuth();
   const [data, setData] = useState<DashboardOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -125,9 +128,15 @@ export default function DashboardScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // useFocusEffect re-runs load every time this screen comes into view.
+  // This ensures the dashboard refetches after login/register instead of
+  // showing a stale 401 error from when the tab was pre-mounted.
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      load();
+    }, [load])
+  );
 
   const handleUnfollow = async (teamId: string) => {
     try {
@@ -175,8 +184,13 @@ export default function DashboardScreen() {
     >
       <StatusBar style="light" />
 
-      {/* Message */}
-      <Text style={styles.message}>{data?.message}</Text>
+      {/* Header row with logout */}
+      <View style={styles.headerRow}>
+        <Text style={styles.message}>{data?.message}</Text>
+        <TouchableOpacity onPress={clearToken} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Sign out</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Followed teams */}
       <Text style={styles.sectionTitle}>Following</Text>
@@ -239,7 +253,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8,
   },
   retryText: { color: "#fff", fontWeight: "600" },
-  message: { color: C.muted, fontSize: 13, margin: 16, marginBottom: 4 },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  message: { color: C.muted, fontSize: 13 },
+  logoutButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: C.surface,
+    borderRadius: 6,
+  },
+  logoutText: { color: C.muted, fontSize: 13 },
   sectionTitle: {
     color: C.text, fontSize: 16, fontWeight: "700",
     marginHorizontal: 16, marginTop: 20, marginBottom: 8,

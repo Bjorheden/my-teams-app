@@ -21,7 +21,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health, me, teams
+from app.api import auth, health, me, teams
 from app.core.config import settings
 
 # ── Lifespan ──────────────────────────────────────────────
@@ -78,6 +78,7 @@ app.add_middleware(
 # All are mounted under /v1 to version the API from day 1.
 
 app.include_router(health.router, prefix="/v1")
+app.include_router(auth.router, prefix="/v1")  # CP9: /v1/auth/...
 app.include_router(teams.router, prefix="/v1")  # CP2: /v1/teams/...
 app.include_router(me.router, prefix="/v1")  # CP2: /v1/me/...
 

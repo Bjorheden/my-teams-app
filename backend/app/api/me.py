@@ -27,8 +27,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.deps import CurrentUser
 from app.db.database import get_db
-from app.db.models import DEMO_USER_ID, Follow
+from app.db.models import Follow
 from app.mockdata.fixtures import (
     FIXTURES,
     STANDINGS_PREMIER_LEAGUE,
@@ -98,14 +99,16 @@ def _enrich_standing(row: dict[str, Any]) -> StandingRow:
     response_model=FollowOut,
     status_code=201,
     summary="Follow a team",
-    description="Add a team to the demo user's followed list. Returns 409 if already following.",  # noqa: E501
+    description="Add a team to the current user's followed list. Returns 409 if already following.",  # noqa: E501
 )
-async def follow_team(body: FollowIn, db: DbSession) -> FollowOut:
+async def follow_team(
+    body: FollowIn, db: DbSession, current_user: CurrentUser
+) -> FollowOut:
     team = TEAMS_BY_ID.get(body.team_id)
     if team is None:
         raise HTTPException(status_code=404, detail=f"Team '{body.team_id}' not found.")
 
-    follow = Follow(user_id=DEMO_USER_ID, team_id=body.team_id)
+    follow = Follow(user_id=current_user.id, team_id=body.team_id)
     db.add(follow)
     try:
         db.commit()
@@ -127,12 +130,12 @@ async def follow_team(body: FollowIn, db: DbSession) -> FollowOut:
     "/follows",
     response_model=FollowsResponse,
     summary="List followed teams",
-    description="Returns all teams the demo user currently follows.",
+    description="Returns all teams the current user follows.",
 )
-async def list_follows(db: DbSession) -> FollowsResponse:
+async def list_follows(db: DbSession, current_user: CurrentUser) -> FollowsResponse:
     rows = (
         db.query(Follow)
-        .filter(Follow.user_id == DEMO_USER_ID)
+        .filter(Follow.user_id == current_user.id)
         .order_by(Follow.team_id)
         .all()
     )
@@ -152,12 +155,14 @@ async def list_follows(db: DbSession) -> FollowsResponse:
     "/follows/{team_id}",
     response_model=UnfollowResponse,
     summary="Unfollow a team",
-    description="Remove a team from the demo user's followed list. Returns 404 if not following.",  # noqa: E501
+    description="Remove a team from the current user's followed list. Returns 404 if not following.",  # noqa: E501
 )
-async def unfollow_team(team_id: str, db: DbSession) -> UnfollowResponse:
+async def unfollow_team(
+    team_id: str, db: DbSession, current_user: CurrentUser
+) -> UnfollowResponse:
     follow = (
         db.query(Follow)
-        .filter(Follow.user_id == DEMO_USER_ID, Follow.team_id == team_id)
+        .filter(Follow.user_id == current_user.id, Follow.team_id == team_id)
         .first()
     )
     if follow is None:
@@ -184,8 +189,8 @@ async def unfollow_team(team_id: str, db: DbSession) -> UnfollowResponse:
         "If no teams are followed, returns a welcome message with empty data."
     ),
 )
-async def get_dashboard(db: DbSession) -> DashboardOut:
-    rows = db.query(Follow).filter(Follow.user_id == DEMO_USER_ID).all()
+async def get_dashboard(db: DbSession, current_user: CurrentUser) -> DashboardOut:
+    rows = db.query(Follow).filter(Follow.user_id == current_user.id).all()
     followed_team_ids = {row.team_id for row in rows}
 
     followed_teams = [

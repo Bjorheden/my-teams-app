@@ -29,8 +29,17 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     log_level: str = "info"
 
-    # Database (not used until CP6)
+    # Database
     database_url: str = "sqlite:///./myteams.db"
+
+    # Auth / JWT (CP9)
+    # SECRET_KEY signs JWTs – keep it secret, keep it long.
+    # Generate a strong key with:
+    # python -c "import secrets; print(secrets.token_hex(32))"
+    secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    # Token lifetime in minutes (default 7 days)
+    jwt_expire_minutes: int = 60 * 24 * 7
 
     model_config = SettingsConfigDict(
         # Look for a .env file in the current working directory

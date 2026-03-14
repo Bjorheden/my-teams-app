@@ -41,6 +41,8 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg2://myteams:myteams@db:5432/myteams}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-10080}
     volumes:
       # Hot-reload: mount source into the container.
       # Changes to Python files restart uvicorn automatically (--reload flag).

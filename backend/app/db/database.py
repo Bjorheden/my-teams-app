@@ -35,9 +35,7 @@ from app.core.config import settings
 # `check_same_thread` is a SQLite-only restriction.
 # With Postgres (CP7+) we pass an empty dict instead.
 _connect_args = (
-    {"check_same_thread": False}
-    if settings.database_url.startswith("sqlite")
-    else {}
+    {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
 )
 
 engine = create_engine(

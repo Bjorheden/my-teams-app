@@ -78,6 +78,18 @@ export interface UnfollowResponse {
   team_id: string;
 }
 
+// ── Auth ─────────────────────────────────────────────────────────
+
+export interface TokenOut {
+  access_token: string;
+  token_type: string;
+}
+
+export interface UserOut {
+  id: number;
+  email: string;
+}
+
 // ── API error shape ──────────────────────────────────────────────
 
 export interface ApiError {

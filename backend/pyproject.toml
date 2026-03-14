@@ -41,6 +41,15 @@ dependencies = [
     # The adapter that lets SQLAlchemy talk to Postgres.
     # `binary` variant includes precompiled C extensions – no libpq needed.
     "psycopg2-binary>=2.9.0",
+    # python-jose – JWT creation and verification (CP9)
+    "python-jose[cryptography]>=3.3.0",
+    # passlib – password hashing (CP9)
+    # bcrypt extra pulls in the bcrypt C extension for fast hashing.
+    # Pin bcrypt<4 – passlib 1.7.x doesn't support the bcrypt 4+ API changes.
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt<4.0.0",
+    # email-validator – required by Pydantic EmailStr (CP9)
+    "email-validator>=2.1.0",
 ]
 
 [project.optional-dependencies]
@@ -69,7 +78,13 @@ line-length = 88
 [tool.ruff.lint]
 # E/W = pycodestyle, F = pyflakes, I = isort, UP = pyupgrade
 select = ["E", "W", "F", "I", "UP"]
-ignore = []
+# UP017: suggests datetime.UTC (module attr) but we import the datetime class
+# directly, so timezone.utc is the correct way to reference it.
+ignore = ["UP017"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files often have intentionally long one-liners for clarity.
+"app/tests/*.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

@@ -15,31 +15,20 @@
 #   3. `monkeypatch` automatically restores the original `SessionLocal`
 #      after each test, guaranteeing a clean state.
 #
-# Why monkeypatch instead of dependency_overrides?
-#   FastAPI's `dependency_overrides` requires the overriding callable
-#   to match how FastAPI resolves the dependency at request time.
-#   In some async-route configurations the override may silently be
-#   skipped.  Monkeypatching the module-level `SessionLocal` variable
-#   is simpler and more reliable: Python functions always look up
-#   globals through the module's `__dict__`, so swapping the variable
-#   there is guaranteed to be picked up by `get_db()`.
-#
-# Why StaticPool?
-#   Without it, sqlite:///:memory: gives each new connection its OWN
-#   empty database.  Base.metadata.create_all() would create tables
-#   in connection-A, but SessionLocal() might open connection-B with
-#   no tables.  StaticPool forces all connections to reuse the same
-#   underlying SQLite database object.
+# CP9 addition: `auth_headers` fixture registers a test user and returns
+# the Authorization header dict so tests can call protected endpoints.
 # ─────────────────────────────────────────────────────────────────
 
 from collections.abc import Generator
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.database import Base
+from app.main import app
 
 
 @pytest.fixture(autouse=True)
@@ -52,7 +41,7 @@ def reset_db(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
       production `get_db()` function uses the test engine transparently.
     - Disposes the engine after the test.
     """
-    # Import models so Base.metadata knows about the Follow table.
+    # Import models so Base.metadata knows about the User + Follow tables.
     import app.db.database as db_module
     from app.db import models  # noqa: F401
 
@@ -72,3 +61,23 @@ def reset_db(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
 
     # monkeypatch restores SessionLocal automatically; we just dispose.
     test_engine.dispose()
+
+
+@pytest.fixture()
+def auth_headers() -> dict[str, str]:
+    """
+    Register a test user and return the Authorization header dict.
+    Use this fixture in any test that calls a protected endpoint.
+
+    Example:
+        def test_something(auth_headers):
+            response = client.get("/v1/me/follows", headers=auth_headers)
+    """
+    client = TestClient(app)
+    response = client.post(
+        "/v1/auth/register",
+        json={"email": "test@example.com", "password": "testpassword123"},
+    )
+    assert response.status_code == 201, f"Auth fixture failed: {response.text}"
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

@@ -30,6 +30,7 @@
 | 6 | State Upgrade | SQLite + SQLAlchemy | ✅ Done |
 | 7 | Compose Upgrade | Postgres service, env-driven config | ✅ Done |
 | 8 | Minimal CD | GHCR push / artifact upload | ✅ Done |
+| 9 | User Auth | JWT, bcrypt, SecureStore, protected routes | ✅ Done |
 
 ---
 
@@ -209,6 +210,57 @@ docker pull ghcr.io/<your-github-username>/<repo>/myteams-backend:latest
 
 ---
 
+## Checkpoint 9 – User Auth
+
+### What we build
+- **Backend:** `POST /v1/auth/register`, `POST /v1/auth/login`, `GET /v1/auth/me` endpoints
+- **JWT tokens** (HS256, 7-day expiry) issued on register/login
+- **bcrypt** password hashing via `passlib`
+- All `/me/*` endpoints now require a valid `Authorization: Bearer <token>` header
+- **Mobile:** Login + Register screens, `AuthContext` with `expo-secure-store` persistence, automatic redirect to `/login` when unauthenticated, logout button on dashboard
+
+### New dependencies
+```
+Backend:  python-jose[cryptography]  passlib[bcrypt]  bcrypt<4  email-validator
+Mobile:   expo-secure-store
+```
+
+### How to test
+```bash
+# Start fresh
+docker compose up --build -d
+
+# Register a user
+curl -X POST http://localhost:8000/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"secret123"}'
+# → {"access_token": "...", "token_type": "bearer"}
+
+# Login
+curl -X POST http://localhost:8000/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"secret123"}'
+
+# Call a protected endpoint
+curl http://localhost:8000/v1/me/dashboard \
+  -H "Authorization: Bearer <token>"
+
+# Run the test suite (53 tests)
+docker compose exec backend python -m pytest app/tests -v
+```
+
+### Definition of done
+- [x] `POST /v1/auth/register` returns 201 + JWT
+- [x] `POST /v1/auth/login` returns JWT
+- [x] Duplicate email returns 409
+- [x] All `/me/*` endpoints return 401 without a token
+- [x] Mobile shows Login/Register screens when no token stored
+- [x] Token persisted in `expo-secure-store`, survives app restart
+- [x] Logout button clears token and redirects to Login
+- [x] 53 tests all pass
+
+---
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -220,6 +272,8 @@ docker pull ghcr.io/<your-github-username>/<repo>/myteams-backend:latest
 | `POSTGRES_USER` | `myteams` | Postgres username (CP7) |
 | `POSTGRES_PASSWORD` | `myteams` | Postgres password (CP7) |
 | `POSTGRES_DB` | `myteams` | Postgres database name (CP7) |
+| `SECRET_KEY` | `dev-secret-key-change-in-production` | HMAC key for signing JWTs (CP9) |
+| `JWT_EXPIRE_MINUTES` | `10080` | JWT validity period in minutes — 10080 = 7 days (CP9) |
 
 ---
 
@@ -240,9 +294,12 @@ docker pull ghcr.io/<your-github-username>/<repo>/myteams-backend:latest
 │       ├── api/               ← route modules
 │       │   ├── health.py
 │       │   ├── teams.py       ← CP2
-│       │   └── me.py          ← CP2
+│       │   ├── me.py          ← CP2
+│       │   └── auth.py        ← register/login/me (CP9)
 │       ├── core/
-│       │   └── config.py      ← settings via pydantic-settings
+│       │   ├── config.py      ← settings via pydantic-settings
+│       │   ├── security.py    ← JWT + bcrypt helpers (CP9)
+│       │   └── deps.py        ← CurrentUser FastAPI dependency (CP9)
 │       ├── mockdata/
 │       │   └── fixtures.py    ← deterministic mock datasets
 │       └── tests/
@@ -252,6 +309,12 @@ docker pull ghcr.io/<your-github-username>/<repo>/myteams-backend:latest
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── app/                   ← Expo Router screens (CP3)
+│       ├── context/
+│       │   └── AuthContext.tsx ← JWT state + SecureStore (CP9)
+│       ├── api/
+│       │   └── client.ts      ← typed fetch wrapper with auth headers (CP3/CP9)
+│       ├── login.tsx          ← Login screen (CP9)
+│       └── register.tsx       ← Register screen (CP9)
 └── .github/
     └── workflows/
         ├── ci.yml             ← CI pipeline

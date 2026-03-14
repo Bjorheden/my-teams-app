@@ -8,8 +8,10 @@
 //   2. Every response is typed – callers get autocomplete + type safety
 //   3. Errors are handled consistently (throws on non-2xx)
 //
-// This is a minimal client – no caching, no retry, no auth headers yet.
-// Those would be added in a production app or when we introduce auth.
+// CP9 CHANGE: Added auth token support.
+//   `setToken(token)` stores the JWT in module memory.
+//   All requests automatically include `Authorization: Bearer <token>`
+//   when a token is set.
 // ─────────────────────────────────────────────────────────────────
 
 import { API_V1 } from "../config";
@@ -18,8 +20,29 @@ import type {
   FollowOut,
   FollowsResponse,
   TeamSearchResponse,
+  TokenOut,
   UnfollowResponse,
+  UserOut,
 } from "../types";
+
+// ── Token management ─────────────────────────────────────────────
+// The token lives here in module memory (loaded from SecureStore on app start).
+// AuthContext calls setToken() after login/logout/restore.
+//
+// onUnauthorized: a callback that AuthContext registers so that any 401
+// response (e.g. stale token after a DB reset) automatically clears the
+// session and redirects to login — without the user having to do anything.
+
+let _token: string | null = null;
+let _onUnauthorized: (() => void) | null = null;
+
+export function setToken(token: string | null): void {
+  _token = token;
+}
+
+export function setOnUnauthorized(cb: (() => void) | null): void {
+  _onUnauthorized = cb;
+}
 
 // ── Core helper ──────────────────────────────────────────────────
 
@@ -32,10 +55,17 @@ async function request<T>(
   const url = `${API_V1}${path}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  // Build headers: always JSON, add Bearer token when available.
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
+  };
+
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { "Content-Type": "application/json" },
+      headers,
       signal: controller.signal,
       ...options,
     });
@@ -49,6 +79,11 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    // A 401 means our stored token is invalid or expired – clear it so the
+    // user is automatically redirected to the login screen.
+    if (response.status === 401) {
+      _onUnauthorized?.();
+    }
     // Attempt to extract the FastAPI error detail
     let detail = `HTTP ${response.status}`;
     try {
@@ -61,6 +96,26 @@ async function request<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+// ── Auth ─────────────────────────────────────────────────────────
+
+export function registerUser(email: string, password: string): Promise<TokenOut> {
+  return request<TokenOut>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function loginUser(email: string, password: string): Promise<TokenOut> {
+  return request<TokenOut>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function getCurrentUser(): Promise<UserOut> {
+  return request<UserOut>("/auth/me");
 }
 
 // ── Teams ────────────────────────────────────────────────────────
